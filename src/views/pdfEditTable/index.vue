@@ -6,14 +6,16 @@
     </div>
     <!-- 搜索框 -->
     <div class="search-box">
-      <el-input v-model="searchText" placeholder="输入一级或二级模块名称搜索" clearable @input="findMatches" style="width: 400px; margin-bottom: 20px;">
+      <el-input v-model="searchText" placeholder="输入一级或二级模块名称搜索" clearable @input="findMatches"
+        @keypress="handleKeyPress" style="width: 400px;">
         <template #prefix>
           <el-icon>
             <Search />
           </el-icon>
         </template>
       </el-input>
-      <!-- 移除匹配计数显示 -->
+      <!-- 使用说明 -->
+      <span class="match-instruction">支持搜索一二级标题，按回车键查找下一个匹配项</span>
     </div>
 
     <!-- 使用 el-skeleton 组件，模拟表格样式 -->
@@ -22,166 +24,151 @@
         <div class="skeleton-table">
           <!-- 模拟表头 -->
           <div class="skeleton-table-header">
-            <el-skeleton-item variant="text" width="80px" />
-            <el-skeleton-item variant="text" width="120px" />
-            <el-skeleton-item variant="text" width="150px" />
-            <el-skeleton-item variant="text" width="150px" />
-            <el-skeleton-item variant="text" width="200px" />
-            <el-skeleton-item variant="text" width="180px" />
-            <el-skeleton-item variant="text" width="100px" />
-            <el-skeleton-item variant="text" width="80px" />
-            <el-skeleton-item variant="text" width="120px" />
-            <el-skeleton-item variant="text" width="120px" />
-            <el-skeleton-item variant="text" width="100px" />
-            <el-skeleton-item variant="text" width="150px" />
-            <el-skeleton-item variant="text" width="150px" />
+            <el-skeleton-item v-for="(width, index) in columnWidthConfig" 
+              :key="'header-' + index" 
+              variant="text" 
+              :style="{ width: width }" />
           </div>
           <!-- 模拟表格行 -->
-          <div v-for="i in 5" :key="i" class="skeleton-table-row">
-            <el-skeleton-item variant="text" width="80px" />
-            <el-skeleton-item variant="text" width="120px" />
-            <el-skeleton-item variant="text" width="150px" />
-            <el-skeleton-item variant="text" width="150px" />
-            <el-skeleton-item variant="text" width="200px" />
-            <el-skeleton-item variant="text" width="180px" />
-            <el-skeleton-item variant="text" width="100px" />
-            <el-skeleton-item variant="text" width="80px" />
-            <el-skeleton-item variant="text" width="120px" />
-            <el-skeleton-item variant="text" width="120px" />
-            <el-skeleton-item variant="text" width="100px" />
-            <el-skeleton-item variant="text" width="150px" />
-            <el-skeleton-item variant="text" width="150px" />
+          <div v-for="i in 15" :key="i" class="skeleton-table-row">
+            <el-skeleton-item v-for="(width, index) in columnWidthConfig" 
+              :key="'row-' + i + '-' + index" 
+              variant="text" 
+              :style="{ width: width }" />
           </div>
         </div>
       </template>
-      <el-table ref="tableRef" :data="tableData" border style="width: 100%" height="100%" row-key="id"
+      <el-table ref="tableRef" :data="tableData" border style="width: 100%;" height="100%" row-key="id"
         :row-class-name="handleHighlightRow" :span-method="mergeCells" :loading="false">
         <el-table-column prop="id" label="编号" width="80" align="center" />
 
-      <el-table-column prop="subsystem" label="子系统" width="250">
-        <template #default="scope">
-          <!-- 添加 title 属性 -->
-          <el-input v-if="scope.row.editing" v-model="scope.row.subsystem" size="small" title="scope.row.subsystem" />
-          <span v-else :title="scope.row.subsystem">{{ scope.row.subsystem }}</span>
-        </template>
-      </el-table-column>
-
-      <el-table-column prop="level1" label="一级模块" width="150">
-        <template #default="scope">
-          <div class="highlight-cell" :class="{ 'highlight': isCurrentMatch(scope.$index, 'level1') }">
+        <el-table-column prop="subsystem" label="子系统" width="250">
+          <template #default="scope">
             <!-- 添加 title 属性 -->
-            <el-input v-if="scope.row.editing" v-model="scope.row.level1" size="small" :title="scope.row.level1" />
-            <span v-else :title="scope.row.level1" v-html="highlightMatch(scope.row.level1, scope.$index, 'level1')"></span>
-          </div>
-        </template>
-      </el-table-column>
-   
-      <el-table-column prop="level2" label="二级模块" width="150">
-        <template #default="scope">
-          <div class="highlight-cell" :class="{ 'highlight': isCurrentMatch(scope.$index, 'level2') }">
-            <el-input v-if="scope.row.editing" v-model="scope.row.level2" size="small" />
-            <span v-else v-html="highlightMatch(scope.row.level2, scope.$index, 'level2')"></span>
-          </div>
-        </template>
-      </el-table-column>
+            <el-input v-if="scope.row.editing" v-model="scope.row.subsystem" size="small" title="scope.row.subsystem" />
+            <span v-else :title="scope.row.subsystem">{{ scope.row.subsystem }}</span>
+          </template>
+        </el-table-column>
 
-      <el-table-column prop="description" label="功能项描述" min-width="250">
-        <template #default="scope">
-          <el-input v-if="scope.row.editing" v-model="scope.row.description" type="textarea"
-            :autosize="{ minRows: 1, maxRows: 3 }" size="small" :title="scope.row.description" />
-          <span v-else :title="scope.row.description">{{ scope.row.description }}</span>
-        </template>
-      </el-table-column>
-      <el-table-column prop="countItem" label="功能点计数项名称" width="180">
-        <template #default="scope">
-          <!-- 添加 title 属性 -->
-          <el-input v-if="scope.row.editing" v-model="scope.row.countItem" size="small" :title="scope.row.countItem" />
-          <span v-else :title="scope.row.countItem">{{ scope.row.countItem }}</span>
-        </template>
-      </el-table-column>
+        <el-table-column prop="level1" label="一级模块" width="150">
+          <template #default="scope">
+            <div class="highlight-cell" :class="{ 'highlight': isCurrentMatch(scope.$index, 'level1') }">
+              <!-- 添加 title 属性 -->
+              <el-input v-if="scope.row.editing" v-model="scope.row.level1" size="small" :title="scope.row.level1" />
+              <span v-else :title="scope.row.level1"
+                v-html="highlightMatch(scope.row.level1, scope.$index, 'level1')"></span>
+            </div>
+          </template>
+        </el-table-column>
 
-      <el-table-column prop="category" label="类别" width="100" align="center">
-        <template #default="scope">
-          <!-- 添加 title 属性 -->
-          <el-select v-if="scope.row.editing" v-model="scope.row.category" size="small" :title="scope.row.category">
-            <el-option 
-              v-for="option in categoryOptions" 
-              :key="option.value" 
-              :label="option.label" 
-              :value="option.value" 
-            />
-          </el-select>
-          <el-tag v-else :type="getCategoryTagType(scope.row.category)" :title="scope.row.category">
-            {{ scope.row.category }}
-          </el-tag>
-        </template>
-      </el-table-column>
+        <el-table-column prop="level2" label="二级模块" width="150">
+          <template #default="scope">
+            <div class="highlight-cell" :class="{ 'highlight': isCurrentMatch(scope.$index, 'level2') }">
+              <el-input v-if="scope.row.editing" v-model="scope.row.level2" size="small" />
+              <span v-else v-html="highlightMatch(scope.row.level2, scope.$index, 'level2')"></span>
+            </div>
+          </template>
+        </el-table-column>
 
-      <el-table-column prop="ufp" label="UFP" width="80" align="center">
-        <template #default="scope">
-          <!-- 添加 title 属性 -->
-          <el-input-number v-if="scope.row.editing" v-model="scope.row.ufp" :min="0" :step="0.5" size="small"
-            controls-position="right" :title="scope.row.ufp.toString()" />
-          <span v-else :title="scope.row.ufp.toString()">{{ scope.row.ufp }}</span>
-        </template>
-      </el-table-column>
+        <el-table-column prop="description" label="功能项描述" min-width="320">
+          <template #default="scope">
+            <el-input v-if="scope.row.editing" v-model="scope.row.description" type="textarea"
+              :autosize="{ minRows: 1, maxRows: 3 }" size="small" :title="scope.row.description" />
+            <span v-else :title="scope.row.description">{{ scope.row.description }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column prop="countItem" label="功能点计数项名称" width="200">
+          <template #default="scope">
+            <!-- 添加 title 属性 -->
+            <el-input v-if="scope.row.editing" v-model="scope.row.countItem" size="small"
+              :title="scope.row.countItem" />
+            <span v-else :title="scope.row.countItem">{{ scope.row.countItem }}</span>
+          </template>
+        </el-table-column>
 
-      <el-table-column prop="reuseLevel" label="重用程度" width="120" align="center">
-        <template #default="scope">
-          <!-- 添加 title 属性 -->
-          <el-select v-if="scope.row.editing" v-model="scope.row.reuseLevel" size="small" :title="scope.row.reuseLevel">
-            <el-option label="高" value="高" />
-            <el-option label="中" value="中" />
-            <el-option label="低" value="低" />
-          </el-select>
-          <el-tag v-else :type="getReuseLevelTagType(scope.row.reuseLevel)" :title="scope.row.reuseLevel">
-            {{ scope.row.reuseLevel }}
-          </el-tag>
-        </template>
-      </el-table-column>
+        <el-table-column prop="category" label="类别" width="100" align="center">
+          <template #default="scope">
+            <!-- 添加 title 属性 -->
+            <el-select v-if="scope.row.editing" v-model="scope.row.category" size="small" :title="scope.row.category">
+              <el-option v-for="option in categoryOptions" :key="option.value" :label="option.label"
+                :value="option.value" />
+            </el-select>
+            <el-tag v-else :type="getCategoryTagType(scope.row.category)" :title="scope.row.category">
+              {{ scope.row.category }}
+            </el-tag>
+          </template>
+        </el-table-column>
 
-      <el-table-column prop="modifyType" label="修改类型" width="120" align="center">
-        <template #default="scope">
-          <!-- 添加 title 属性 -->
-          <el-select v-if="scope.row.editing" v-model="scope.row.modifyType" size="small" :title="scope.row.modifyType">
-            <el-option label="新增" value="新增" />
-            <el-option label="修改" value="修改" />
-            <el-option label="删除" value="删除" />
-          </el-select>
-          <el-tag v-else :type="getModifyTypeTagType(scope.row.modifyType)" :title="scope.row.modifyType">
-            {{ scope.row.modifyType }}
-          </el-tag>
-        </template>
-      </el-table-column>
+        <el-table-column prop="ufp" label="UFP" width="80" align="center">
+          <template #default="scope">
+            <!-- 添加 title 属性 -->
+            <el-input-number v-if="scope.row.editing" v-model="scope.row.ufp" :min="0" :step="0.5" size="small"
+              controls-position="right" :title="scope.row.ufp.toString()" />
+            <span v-else :title="scope.row.ufp.toString()">{{ scope.row.ufp }}</span>
+          </template>
+        </el-table-column>
 
-      <el-table-column prop="us" label="US" width="100" align="center">
-        <template #default="scope">
-          <!-- 添加 title 属性 -->
-          <el-input v-if="scope.row.editing" v-model="scope.row.us" size="small" :title="scope.row.us" />
-          <span v-else :title="scope.row.us">{{ scope.row.us }}</span>
-        </template>
-      </el-table-column>
+        <el-table-column prop="reuseLevel" label="重用程度" width="120" align="center">
+          <template #default="scope">
+            <!-- 添加 title 属性 -->
+            <el-select v-if="scope.row.editing" v-model="scope.row.reuseLevel" size="small"
+              :title="scope.row.reuseLevel">
+              <el-option label="高" value="高" />
+              <el-option label="中" value="中" />
+              <el-option label="低" value="低" />
+            </el-select>
+            <el-tag v-else :type="getReuseLevelTagType(scope.row.reuseLevel)" :title="scope.row.reuseLevel">
+              {{ scope.row.reuseLevel }}
+            </el-tag>
+          </template>
+        </el-table-column>
 
-      <el-table-column prop="remark" label="备注" min-width="150">
-        <template #default="scope">
-          <!-- 添加 title 属性 -->
-          <el-input v-if="scope.row.editing" v-model="scope.row.remark" type="textarea"
-            :autosize="{ minRows: 1, maxRows: 3 }" size="small" :title="scope.row.remark" />
-          <span v-else :title="scope.row.remark">{{ scope.row.remark }}</span>
-        </template>
-      </el-table-column>
+        <el-table-column prop="modifyType" label="修改类型" width="120" align="center">
+          <template #default="scope">
+            <!-- 添加 title 属性 -->
+            <el-select v-if="scope.row.editing" v-model="scope.row.modifyType" size="small"
+              :title="scope.row.modifyType">
+              <el-option label="新增" value="新增" />
+              <el-option label="修改" value="修改" />
+              <el-option label="删除" value="删除" />
+            </el-select>
+            <el-tag v-else :type="getModifyTypeTagType(scope.row.modifyType)" :title="scope.row.modifyType">
+              {{ scope.row.modifyType }}
+            </el-tag>
+          </template>
+        </el-table-column>
 
-      <el-table-column label="操作" width="150" align="center" fixed="right">
-        <template #default="scope">
-          <el-button size="small" :type="scope.row.editing ? 'success' : 'primary'" @click="toggleEdit(scope.row)">
-            {{ scope.row.editing ? '保存' : '编辑' }}
-          </el-button>
-          <el-button size="small" type="danger" @click="deleteRow(scope.$index)" v-if="!scope.row.editing">
-            删除
-          </el-button>
-        </template>
-      </el-table-column>
-    </el-table>
+        <el-table-column prop="us" label="US" width="100" align="center">
+          <template #default="scope">
+            <!-- 添加 title 属性 -->
+            <el-input v-if="scope.row.editing" v-model="scope.row.us" size="small" :title="scope.row.us" />
+            <span v-else :title="scope.row.us">{{ scope.row.us }}</span>
+          </template>
+        </el-table-column>
+
+        <el-table-column prop="remark" label="备注" min-width="150">
+          <template #default="scope">
+            <!-- 添加 title 属性 -->
+            <el-input v-if="scope.row.editing" v-model="scope.row.remark" type="textarea"
+              :autosize="{ minRows: 1, maxRows: 3 }" size="small" :title="scope.row.remark" />
+            <span v-else :title="scope.row.remark">{{ scope.row.remark }}</span>
+          </template>
+        </el-table-column>
+
+        <el-table-column label="操作" width="200" align="center" fixed="right">
+          <template #default="scope">
+            <el-button size="small" :type="scope.row.editing ? 'success' : 'primary'" @click="toggleEdit(scope.row)">
+              {{ scope.row.editing ? '保存' : '编辑' }}
+            </el-button>
+            <el-button size="small" type="danger" @click="deleteRow(scope.$index)" v-if="!scope.row.editing">
+              删除
+            </el-button>
+            <el-button size="small" type="warning" @click="insertRow(scope.$index)" v-if="!scope.row.editing">
+              插入
+            </el-button>
+          </template>
+        </el-table-column>
+      </el-table>
     </el-skeleton>
   </div>
 </template>
@@ -191,7 +178,7 @@ import { ref, computed } from 'vue';
 import { Search } from '@element-plus/icons-vue';
 import { ElMessage } from 'element-plus';
 import * as XLSX from 'xlsx';
-import { data1 } from './mock';
+import { data3 } from './mock';
 import { nextTick } from 'vue';
 
 // 定义 props 来接收父组件传递的数据
@@ -209,9 +196,23 @@ const props = defineProps({
     type: Array,
     default: () => []
   },
-  
-});
 
+});
+const columnWidthConfig = [
+  '80px',   // 编号
+  '120px',  // 子系统
+  '150px',  // 一级模块
+  '150px',  // 二级模块
+  '200px',  // 功能项描述
+  '180px',  // 功能点计数项名称
+  '100px',  // 类别
+  '80px',   // UFP
+  '120px',  // 重用程度
+  '120px',  // 修改类型
+  '100px',  // US
+  '150px',  // 备注
+  '150px'   // 操作
+];
 // 表格引用
 const tableRef = ref(null);
 // 搜索文本
@@ -222,17 +223,23 @@ const matchedRows = ref([]);
 const currentMatchIndex = ref(-1);
 // 当前匹配的字段
 const currentMatchField = ref('');
-// 用于合并单元格的数组
-const spanArr = ref([]);
 // 使用计算属性定义 tableData
-const tableData = computed(() => {
-  return props.pdfDealTableData.map(item => ({
-    ...item,
-    ufp: item.ufp || 35 ,
-    reuseLevel:'高',
-    modifyType:'新增'
-  }));
-});
+const tableData = ref([]);
+
+// 监听 props.pdfDealTableData 的变化，动态更新 tableData
+watch(
+  () => props.pdfDealTableData,
+  // () => data3,
+  (newVal) => {
+    tableData.value = newVal.map(item => ({
+      ...item,
+      ufp: item.ufp || 35,
+      reuseLevel: item.reuseLevel || '高',
+      modifyType: item.modifyType || '新增'
+    }));
+  },
+  { immediate: true, deep: true }
+);
 
 const categoryOptions = [
   { label: 'EI', value: 'EI' },
@@ -241,56 +248,93 @@ const categoryOptions = [
   { label: 'ILF', value: 'ILF' },
   { label: 'EIF', value: 'EIF' }
 ];
-// 计算合并单元格的数组
-const calculateSpanArr = () => {
-  let pos = 0;
-  spanArr.value = [];
-  tableData.value.forEach((row, index) => {
-    if (index === 0) {
-      spanArr.value.push(1);
-      pos = 0;
-    } else {
-      // 判断当前行的一级模块是否和上一行相同
-      if (row.level1 === tableData.value[index - 1].level1) {
-        spanArr.value[pos] += 1;
-        spanArr.value.push(0);
-      } else {
-        spanArr.value.push(1);
-        pos = index;
-      }
-    }
-  });
-};
-
-// 监听 tableData 变化，重新计算合并数组
-watch(tableData, () => {
-  calculateSpanArr();
-}, { deep: true });
 
 // 合并单元格方法
 const mergeCells = ({ row, column, rowIndex, columnIndex }) => {
-  if (columnIndex === 2) { // 一级模块所在列的索引为 2
-    const rowSpan = spanArr.value[rowIndex];
-    return {
-      rowspan: rowSpan,
-      colspan: 1
-    };
+  if (column.property === 'level1' || column.property === 'level2'  || column.property === 'description') {
+    const previousRow = tableData.value[rowIndex - 1];
+    if (previousRow && previousRow[column.property] === row[column.property]) {
+      return {
+        rowspan: 0,
+        colspan: 0,
+      };
+    } else {
+      let rowspan = 1;
+      for (let i = rowIndex + 1; i < tableData.value.length; i++) {
+        if (tableData.value[i][column.property] === row[column.property]) {
+          rowspan++;
+        } else {
+          break;
+        }
+      }
+      return {
+        rowspan,
+        colspan: 1,
+      };
+    }
   }
-  return {
-    rowspan: 1,
-    colspan: 1
-  };
 };
- 
+
 
 // 查找匹配项
 const findMatches = () => {
-  
-};
- 
+  matchedRows.value = [];
+  currentMatchIndex.value = -1;
 
- 
- 
+  if (!searchText.value) return;
+
+  tableData.value.forEach((row, index) => {
+    ['level1', 'level2'].forEach(field => {
+      const text = row[field];
+      const matchIndex = text.indexOf(searchText.value);
+      if (matchIndex !== -1) {
+        matchedRows.value.push({ index, field, matchText: searchText.value, matchIndex });
+      }
+    });
+  });
+
+  if (matchedRows.value.length > 0) {
+    currentMatchIndex.value = 0;
+  }
+};
+
+// 监听回车键事件
+const handleKeyPress = (event) => {
+  if (event.key === 'Enter') {
+    if (matchedRows.value.length > 0) {
+      let nextIndex = (currentMatchIndex.value + 1) % matchedRows.value.length;
+
+      // 跳过合并的行
+      while (spanArr.value[matchedRows.value[nextIndex].index] === 0) {
+        nextIndex = (nextIndex + 1) % matchedRows.value.length;
+      }
+
+      currentMatchIndex.value = nextIndex;
+
+      // 立即高亮匹配项
+      nextTick(() => {
+        const match = matchedRows.value[currentMatchIndex.value];
+        if (match) {
+          const tableElement = tableRef.value?.$el;
+          if (tableElement) {
+            const rowIndex = match.index;
+            const estimatedRowHeight = 36; // 默认行高
+            const headerHeight = 40; // 表头高度
+            const scrollTop = rowIndex * estimatedRowHeight + headerHeight;
+            tableRef.value.scrollTo({
+              top: scrollTop,
+              behavior: 'smooth'
+            });
+          }
+        }
+      });
+    }
+  }
+};
+
+watch(searchText, () => {
+  findMatches();
+}, { immediate: true });
 
 // 判断是否是当前匹配项
 const isCurrentMatch = (rowIndex, field) => {
@@ -317,24 +361,27 @@ const highlightMatch = (text, rowIndex, field) => {
 };
 
 watch(() => props.highlightRowIds, (newVal) => {
-  if (newVal.length > 0) {
-    // 等待 DOM 更新完成
+  if (newVal.length > 0 && tableRef.value) {
     nextTick(() => {
-      // 安全处理：确保 newVal[0] 存在且是有效数字
-      const rowId = Number(newVal[0]);
-      if (!isNaN(rowId) && rowId > 0) {
-        tableRef.value.scrollTo({
-          top: (rowId - 1) * 80,
-          behavior: 'smooth'
-        });
+      const firstId = String(newVal[0]);
+      const rowIndex = tableData.value.findIndex(row => String(row.id) === firstId);
+      if (rowIndex !== -1) {
+          nextTick(() => {
+            const tableEl = tableRef.value.$el;
+            if (tableEl) {
+              const rows = tableEl.querySelectorAll('.el-table__body tr');
+              if (rows && rows[rowIndex]) {
+               console.log('需要滚动到的行索引:', rowIndex);
+                rows[rowIndex].scrollIntoView({ behavior: 'smooth', block: 'center' });
+              }
+            }
+          });
       }
     });
   }
 }, { immediate: true });
-// 表格行类名
 // 修改高亮判断逻辑
 const handleHighlightRow = ({ row }) => {
- 
   return props.highlightRowIds.includes(String(row.id)) ? 'highlight-row' : '';
 };
 
@@ -342,19 +389,39 @@ const handleHighlightRow = ({ row }) => {
 const toggleEdit = (row) => {
   row.editing = !row.editing;
   if (!row.editing) {
+    // 重新排序ID
+    reorderIds();
     ElMessage.success('保存成功');
   }
+};
+// 添加重新排序ID的函数
+const reorderIds = () => {
+  tableData.value = tableData.value.map((row, index) => ({
+    ...row,
+    id: (index + 1).toString()
+  }));
 };
 
 // 删除行
 const deleteRow = (index) => {
-  tableData.value.splice(index, 1);
-  ElMessage.success('删除成功');
-  // 重新计算匹配项
-  findMatches();
-  // 重新计算合并单元格数组
-  calculateSpanArr();
+  ElMessageBox.confirm('确定要删除这一行吗？', '提示', {
+    confirmButtonText: '确定',
+    cancelButtonText: '取消',
+    type: 'warning'
+  }).then(() => {
+    // 创建一个新数组，避免直接修改原数组
+    const newTableData = [...tableData.value];
+    newTableData.splice(index, 1);
+    // 更新表格数据
+    tableData.value = newTableData;
+    // 重新排序ID
+    reorderIds();
+    ElMessage.success('删除成功');
+  }).catch(() => {
+    // 取消删除
+  });
 };
+
 
 // 获取类别标签类型
 const getCategoryTagType = (category) => {
@@ -388,54 +455,104 @@ const getModifyTypeTagType = (type) => {
 
 // 导出表格函数
 const exportTable = () => {
-  if (tableData.value.length === 0) {
-    ElMessage.warning('没有数据可导出');
-    return;
-  }
+  // 创建一个新的工作簿
+  const workbook = XLSX.utils.book_new()
 
-  // 定义表头
-  const header = [
-    '编号', '子系统', '一级模块','功能点计数项名称'  ,'功能项描述',
-    '类别', 'UFP', '重用程度', '修改类型', 'US', '备注'
-  ];
-
-  // 提取表格数据
-  const data = tableData.value.map(row => [
-    row.id, row.subsystem, row.level1, row.countItem, row.description,
-     row.category, row.ufp, row.reuseLevel, row.modifyType, row.us, row.remark
-  ]);
+  // 准备导出数据，移除编辑状态标记
+  const exportData = tableData.value.map(row => {
+    const { editing, ...rest } = row
+    return rest
+  })
 
   // 创建工作表
-  const ws = XLSX.utils.aoa_to_sheet([header, ...data]);
+  const worksheet = XLSX.utils.json_to_sheet(exportData)
 
-  // 设置表头第一行为灰色
-  const range = XLSX.utils.decode_range(ws['!ref']);
-  for (let C = range.s.c; C <= range.e.c; ++C) {
-    const cell = XLSX.utils.encode_cell({ r: 0, c: C });
-    ws[cell].s = {
-      fill: { fgColor: { rgb: "D3D3D3" } },
-      font: { bold: true }
-    };
-  }
+  // 设置列宽
+  const columnWidths = [
+    { wch: 8 },  // 编号
+    { wch: 25 }, // 子系统
+    { wch: 15 }, // 一级模块
+    { wch: 15 }, // 二级模块
+    { wch: 30 }, // 功能项描述
+    { wch: 20 }, // 功能点计数项名称
+    { wch: 10 }, // 类别
+    { wch: 8 },  // UFP
+    { wch: 12 }, // 重用程度
+    { wch: 12 }, // 修改类型
+    { wch: 10 }, // US
+    { wch: 20 }  // 备注
+  ]
+  worksheet['!cols'] = columnWidths
 
-  // 创建工作簿
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, 'Sheet1');
+  // 添加工作表到工作簿
+  XLSX.utils.book_append_sheet(workbook, worksheet, '功能点数据')
+
+  // 生成文件名（当前日期时间）
+  const now = new Date()
+  const fileName = `功能点数据_${now.getFullYear()}${(now.getMonth() + 1).toString().padStart(2, '0')}${now.getDate().toString().padStart(2, '0')}_${now.getHours().toString().padStart(2, '0')}.xlsx`
 
   // 导出文件
-  XLSX.writeFile(wb, 'exported_table.xlsx');
-  ElMessage.success('表格导出成功');
+  XLSX.writeFile(workbook, fileName)
+
+  // 提示用户
+  ElMessage.success(`数据已成功导出为 ${fileName}`)
+}
+
+// 插入行
+const insertRow = (index) => {
+  // 获取最大ID
+  const maxId = tableData.value.reduce((max, item) => Math.max(max, parseInt(item.id) || 0), 0);
+
+  // 创建新行数据
+  const newRow = {
+    id: (maxId + 1).toString(),
+    subsystem: tableData.value[index]?.subsystem || '',
+    level1: tableData.value[index]?.level1 || '',
+    level2: '',
+    description: '',
+    countItem: '',
+    category: 'EI',
+    ufp: 35,
+    reuseLevel: '高',
+    modifyType: '新增',
+    us: '',
+    remark: '',
+    editing: true // 默认进入编辑状态
+  };
+
+  // 在指定位置插入新行
+  const newTableData = [...tableData.value];
+  newTableData.splice(index + 1, 0, newRow);
+  tableData.value = newTableData;
+
+  // 提示用户
+  ElMessage.success('已插入新行');
+
+  // 滚动到新插入的行
+  nextTick(() => {
+    if (tableRef.value) {
+      const estimatedRowHeight = 36; // 默认行高
+      const headerHeight = 40; // 表头高度
+      const scrollTop = (index + 1) * estimatedRowHeight + headerHeight;
+      tableRef.value.scrollTo({
+        top: scrollTop,
+        behavior: 'smooth'
+      });
+    }
+  });
 };
- 
 
 </script>
 
 <style scoped>
 .table-container {
   padding: 20px;
-  height: 100vh;
+  height: 100%;
+  /* 修改：从100vh改为100%，使表格容器高度适应父容器 */
   box-sizing: border-box;
   position: relative;
+  overflow: auto;
+  /* 添加：使表格容器可以滚动 */
 }
 
 /* 导出按钮样式 */
@@ -448,8 +565,20 @@ const exportTable = () => {
 .search-box {
   margin-bottom: 20px;
   display: flex;
-  align-items: center;
-  gap: 10px;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 5px;
+}
+
+.match-instruction {
+  color: #999;
+  /* 淡化文字颜色 */
+  font-size: 12px;
+  /* 减小字体大小 */
+  margin-top: 5px;
+  /* background-color: #f5f5f5; */
+  padding: 5px 10px;
+  border-radius: 4px;
 }
 
 .match-count {
@@ -457,7 +586,7 @@ const exportTable = () => {
   font-size: 14px;
 }
 
- 
+
 
 /* 高亮单元格样式 */
 .highlight-cell.highlight {
@@ -503,7 +632,7 @@ const exportTable = () => {
 
 .skeleton-table-row {
   display: flex;
-  padding: 12px 0;
+  padding: 15px 0;
   border-bottom: 1px solid #dcdfe6;
 }
 
@@ -526,16 +655,30 @@ const exportTable = () => {
 .description-text {
   white-space: normal;
   word-wrap: break-word;
-  display: inline-block; /* 确保样式生效 */
+  display: inline-block;
+  /* 确保样式生效 */
 }
+
 :deep(.highlight-row) {
   background-color: #f0f9eb !important;
   animation: pulse 1.5s infinite;
 }
 
+:deep(.el-table .cell) {
+  white-space: inherit;
+}
+
 @keyframes pulse {
-  0% { background-color: #f0f9eb; }
-  50% { background-color: #e1f3d8; }
-  100% { background-color: #f0f9eb; }
+  0% {
+    background-color: #f0f9eb;
+  }
+
+  50% {
+    background-color: #e1f3d8;
+  }
+
+  100% {
+    background-color: #f0f9eb;
+  }
 }
 </style>

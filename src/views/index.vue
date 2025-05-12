@@ -1,7 +1,14 @@
 <template>
   <div class="main-container-top">
     <!-- 左边容器 -->
-    <div :class="state.pdfPages ? 'left-container' : 'left-container-drag'">
+    <!-- 左边容器 -->
+    <div :class="[state.pdfPages ? 'left-container' : 'left-container-drag', {'left-container-hidden': isLeftContainerHidden}]">
+      <!-- 添加折叠按钮 -->
+      <div class="collapse-button" @click="toggleLeftContainer">
+        <el-icon :class="{'icon-rotate': isLeftContainerHidden}">
+          <ArrowLeft />
+        </el-icon>
+      </div>
       <!-- 原有的上传按钮和 PDF 容器 -->
       <div v-if="!state.pdfPages">
         <!-- 添加 el-upload 拖拽上传组件 -->
@@ -11,7 +18,9 @@
           <div class="el-upload__text">将文件拖到此处，或<em>点击上传</em></div>
         </el-upload>
       </div>
-      <div v-else id="pdf-container">
+      <div v-else id="pdf-container" class="pdf-container-wrapper" v-loading="pdfRendering"
+        element-loading-text="PDF渲染中..." element-loading-spinner="el-icon-loading"
+        element-loading-background="rgba(255, 255, 255, 0.9)">
         <div v-for="page in state.pdfPages" :key="page" class="pdf-page-container">
           <canvas :id="`pdfCanvas${page}`" style="border-bottom:1px solid #d4d2d2" />
           <div :id="`textLayer${page}`" class="text-layer"></div>
@@ -19,7 +28,7 @@
       </div>
     </div>
     <!-- 右边容器 -->
-    <div class="right-container">
+    <div class="right-container" :class="{'right-container-expanded': isLeftContainerHidden}">
       <!-- 右边上半部分 -->
       <div class="right-top"
         style="display: flex; align-items: center; justify-content: space-between; flex-direction: column;">
@@ -42,15 +51,13 @@
           <el-button type="primary" @click="dialogVisible = true">配置 AI 模型</el-button>
           <!-- 修改按钮，添加 :loading 属性 -->
           <el-button type="primary" @click="submitPrompt" :loading="loading">开始生成</el-button>
+          <el-progress v-if="loading" :percentage="progress" style="width: 100%; margin-top: 10px;" />
         </div>
       </div>
       <!-- 右边下半部分 -->
       <div class="right-bottom">
         <!-- 这里可以添加右边下半部分的自定义内容 -->
-        <PdfEditTable 
-          ref="pdfEditTableRef"
-          :pdfDealTableData="state.tableData" 
-          :submitLoading="loading" 
+        <PdfEditTable ref="pdfEditTableRef" :pdfDealTableData="state.tableData" :submitLoading="loading"
           :highlight-row-ids="selectedRowIds">
         </PdfEditTable>
       </div>
@@ -68,13 +75,38 @@
         <!-- 二选一的单选框 -->
         <el-form-item label="参数设置">
           <el-radio-group v-model="paramType">
-            <el-radio label="default">AI 默认参数</el-radio>
-            <el-radio label="custom">自定义参数</el-radio>
+            <el-radio value="default">AI 默认参数</el-radio>
+            <el-radio value="custom">自定义参数</el-radio>
           </el-radio-group>
         </el-form-item>
         <!-- 自定义参数文本框 -->
         <el-form-item v-if="paramType === 'custom'" label="自定义参数">
-          <el-input type="textarea" v-model="customParams" placeholder="请输入自定义参数" :rows="35"></el-input>
+          <el-input type="textarea" v-model="customParams" placeholder="请输入自定义参数" :rows="30"></el-input>
+          <!-- 新增恢复默认参数按钮 -->
+          <div style="margin-top: 10px; text-align: right;">
+            <el-button type="primary" @click="resetCustomParams">恢复默认参数</el-button>
+          </div>
+        </el-form-item>
+        <!-- 新增高级配置 -->
+        <el-form-item>
+          <el-collapse>
+            <el-collapse-item title="高级配置">
+              <el-form-item label="Token颗粒化">
+                <div class="demo-progress">
+                  <el-progress :percentage="tokenPercentage" :color="tokenColors" :format="format" />
+                  <div style="margin-top: 10px;">
+                    <el-button-group>
+                      <el-button :icon="Minus" @click="decreaseToken" />
+                      <el-button :icon="Plus" @click="increaseToken" />
+                    </el-button-group>
+                  </div>
+                  <div class="token-description" style="margin-top: 10px; color: #606266; font-size: 14px;">
+                    Token数量影响输出结果的精细程度：数量越小结果相对精细化，时间会慢；数量越大可以处理更长的文本处理时间快，但可能会降低精细度。
+                  </div>
+                </div>
+              </el-form-item>
+            </el-collapse-item>
+          </el-collapse>
         </el-form-item>
       </el-form>
       <template #footer>
@@ -90,32 +122,22 @@
 import { onMounted, reactive, nextTick, ref } from "vue";
 import * as PDF from "pdfjs-dist/legacy/build/pdf.mjs";
 import aiAxios, { apiConfigs, ifpugFunctionPointEvaluationPrompt,customizeEvaluationPrompt } from './pdfEditTable/config';
-import PdfEditTable from './pdfEditTable';
+import PdfEditTable from './pdfEditTable/index.vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
-import { data2 } from './pdfEditTable/mock';
+import { data2, data3 } from './pdfEditTable/mock';
 // import { TextLayerBuilder } from 'pdfjs-dist/legacy/web/pdf_viewer.mjs';
 import { debounce } from 'lodash';
+import { Plus, Minus, ArrowLeft } from '@element-plus/icons-vue'
 const pdfEditTableRef = ref(null);
-const data3 = [
-  {
-    id: 1,
-    "subsystem": "智慧养殖大数据管理平台",
-    "level1": "基础信息管理",
-    "countItem": "养殖场信息管理",
-    "description": "对养殖场内鸡场进行动态维护，包括名称、地址、联系人、联系电话等信息的增删改查。",
-    "ufp": 5,
-    "pdfTransformText": "地大数据运行中心项目"
-  },
-  {
-    id: 2,
-    "subsystem": "智慧养殖大数据管理平台",
-    "level1": "基础信息管理",
-    "countItem": "供应商信息管理",
-    "description": "对鸡场所对应的供应商进行动态维护，包括商家信息、对应供应类型、联系人、联系电话、供应商所在地址等信息的增删改查。",
-    "ufp": 5,
-    "pdfTransformText": "项目建设地点"
-  },
-]
+
+// 添加左侧容器折叠状态
+const isLeftContainerHidden = ref(false);
+
+// 切换左侧容器显示/隐藏状态
+const toggleLeftContainer = () => {
+  isLeftContainerHidden.value = !isLeftContainerHidden.value;
+};
+
 PDF.GlobalWorkerOptions.workerSrc = 'node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs';
 
 const state = reactive({
@@ -130,13 +152,48 @@ const state = reactive({
   selectedRow: null, // 用于存储选中的行数据
   selectedCell: null, // 用于存储选中的单元格数据 
 });
+// 定义token配置选项和对应的颜色
+const tokenConfig = {
+  2048: { color: '#f56c6c', percentage: 25 },
+  4096: { color: '#e6a23c', percentage: 50 },
+  8192: { color: '#5cb87a', percentage: 75 },
+  16384: { color: '#6f7ad3', percentage: 100 }
+};
+// 添加PDF渲染状态变量
+const pdfRendering = ref(false);
 
+const tokenOptions = Object.keys(tokenConfig).map(Number);
+const tokenColors = Object.values(tokenConfig).map(({ color, percentage }) => ({ color, percentage }));
+
+// 修改token配置相关状态
+const tokenPercentage = ref(100);
+let currentTokenIndex = 3; // 默认16384
+const loading = ref(false);
+const progress = ref(0); // 新增进度条变量
 let pdfDoc = null;
 const redCharPositions = ref([]);
-const loading = ref(false);
-
 const selectedRowIds = ref([]);
 
+// 增加token配置
+const increaseToken = () => {
+  if (currentTokenIndex < tokenOptions.length - 1) {
+    currentTokenIndex++;
+    tokenPercentage.value = tokenConfig[tokenOptions[currentTokenIndex]].percentage;
+  }
+};
+
+// 减少token配置
+const decreaseToken = () => {
+  if (currentTokenIndex > 0) {
+    currentTokenIndex--;
+    tokenPercentage.value = tokenConfig[tokenOptions[currentTokenIndex]].percentage;
+  }
+};
+
+// 获取当前选择的token值
+const getCurrentToken = () => tokenOptions[currentTokenIndex];
+
+const format = (percentage) => `${getCurrentToken()} Token`;
 // Handle file upload change event
 const handleFileChange = (file) => {
   let actualFile;
@@ -185,8 +242,8 @@ const handleRemove = () => {
 };
 
 onMounted(() => {
-   // 调试代码
-   window.vm = this
+  // 调试代码
+  window.vm = this
   console.log('表格实例：', pdfEditTableRef.value?.tableRef)
 });
 
@@ -200,12 +257,17 @@ function loadFile(url) {
     const { numPages } = p;
     state.pdfPages = numPages;
     nextTick(() => {
+      // 开始渲染前设置加载状态为true
+      pdfRendering.value = true;
       renderPage(1);
     });
   }).catch((error) => {
     console.error('加载 PDF 文件出错:', error);
+    // 出错时也要关闭加载状态
+    pdfRendering.value = false;
   });
 }
+
 async function renderPage(num) {
   const page = await pdfDoc.getPage(num);
   const canvas = document.getElementById(`pdfCanvas${num}`);
@@ -278,7 +340,7 @@ async function renderPage(num) {
 
   const highlightRanges = [];
   for (const item of state.tableData) {
-    const searchText = item.pdfTransformText;
+    const searchText = item.description;
     let startIndex = 0;
     while ((startIndex = fullText.indexOf(searchText, startIndex)) !== -1) {
       const endIndex = startIndex + searchText.length;
@@ -287,7 +349,6 @@ async function renderPage(num) {
     }
   }
 
-  // 渲染文本
 
   // 新增高亮区域数据
   const highlightAreas = ref([]);
@@ -311,13 +372,12 @@ async function renderPage(num) {
         if (currentIndex >= range.start && currentIndex < range.end) {
           // 获取完整的高亮文本
           highlightText = state.tableData.find(
-            d => d.pdfTransformText === fullText.substring(range.start, range.end)
-          )?.pdfTransformText || '';
+            d => d.description === fullText.substring(range.start, range.end)
+          )?.description || '';
           break;
         }
       }
-      console.log(highlightText,1);
-      
+
       if (highlightText) {
         const charWidth = ctx.measureText(char).width;
         highlightAreas.value.push({
@@ -375,16 +435,14 @@ async function renderPage(num) {
     );
 
     if (found) {
-    // 查找所有匹配的表格行
-    const matchedRows = state.tableData.filter(
-      item => item.pdfTransformText === found.text
-    );
-    if (matchedRows.length) {
-      selectedRowIds.value = matchedRows.map(r => String(r.id));
-      // 滚动到第一个匹配行
-      
+      // 查找所有匹配的表格行
+      const matchedRows = state.tableData.filter(
+        item => item.description === found.text
+      );
+      if (matchedRows.length) {
+        selectedRowIds.value = matchedRows.map(r => String(r.id));
+      }
     }
-  }
   };
 
   // 在canvas元素上绑定事件（修改这部分）
@@ -394,9 +452,13 @@ async function renderPage(num) {
   }
 
 
+
   if (state.pdfPages > num) {
     // 确保下一页的图片也能正确渲染
     await renderPage(num + 1);
+  } else {
+    // 所有页面渲染完成后，关闭加载状态
+    pdfRendering.value = false;
   }
 }
 
@@ -404,10 +466,10 @@ async function renderPage(num) {
 
 // 新增对话框相关响应式数据和方法
 const dialogVisible = ref(false);
-const selectedModel = ref('GLM-4-plus');
+const selectedModel = ref('doubao-1-5-pro-32k-250115');
 const paramType = ref('default');
 const customParams = ref('');
-customParams.value = localStorage.getItem('aiCustomParams') || ''; 
+customParams.value = localStorage.getItem('aiCustomParams') || customizeEvaluationPrompt;
 
 const saveConfig = () => {
   console.log('保存配置:', {
@@ -419,6 +481,12 @@ const saveConfig = () => {
   dialogVisible.value = false;
 };
 
+// 新增恢复默认参数方法
+const resetCustomParams = () => {
+  customParams.value = customizeEvaluationPrompt;
+  ElMessage.success('已恢复默认参数');
+};
+
 const submitPrompt = async () => {
   // 新增PDF文件校验
   if (!state.pdfSrc) {
@@ -426,27 +494,33 @@ const submitPrompt = async () => {
     return;
   }
 
-  // 开始加载，设置 loading 为 true
   loading.value = true;
+  progress.value = 0; // 开始时重置进度
+  const t = getCurrentToken()
   try {
-    if(paramType.value == 'default'){
-      const text = await aiAxios(selectedModel.value, state.pdfAllText + '，' + ifpugFunctionPointEvaluationPrompt);
+    // 模拟进度条递增（如有后端进度接口可替换为轮询）
+    const timer = setInterval(() => {
+      if (progress.value < 99) progress.value += Math.floor(Math.random() * 8) + 1;
+    }, 20000);
+
+    if (paramType.value == 'default') {
+      console.log(state.pdfAllText);
+      const text = await aiAxios(selectedModel.value, state.pdfAllText + ',' + ifpugFunctionPointEvaluationPrompt, t);
       state.tableData = text;
-    }else{
-      // console.log(customParams.value + customizeEvaluationPrompt);
-      
-      const text = await aiAxios(selectedModel.value, state.pdfAllText + '，' + customParams.value + customizeEvaluationPrompt);
+    } else {
+      const text = await aiAxios(selectedModel.value, state.pdfAllText + '，' + customParams.value);
       state.tableData = text;
     }
 
     if (pdfDoc) {
-      await renderPage(1); // 使用await等待渲染完成
-      console.log('重新渲染完成', state.tableData);
+      await renderPage(1);
     }
+    progress.value = 100; // 生成完成
+    clearInterval(timer);
   } catch (error) {
     console.error('生成过程出错:', error);
+    progress.value = 0;
   } finally {
-    // 加载结束，设置 loading 为 false
     loading.value = false;
   }
 };
@@ -460,6 +534,7 @@ const submitPrompt = async () => {
 .main-container-top {
   display: flex;
   height: 100vh;
+  background: #fff;
 }
 
 .left-container {
@@ -487,8 +562,8 @@ const submitPrompt = async () => {
   flex: 1;
   display: flex;
   flex-direction: column;
-  overflow-x: auto;
-  /* 支持横向滚动 */
+  overflow: hidden;
+  /* 修改：从overflow-x: auto改为hidden，防止右侧容器出现滚动条 */
   min-width: 0;
   /* 确保内容溢出时可以滚动 */
 }
@@ -506,6 +581,8 @@ const submitPrompt = async () => {
   flex: 1;
   border: 1px solid #ccc;
   padding: 10px;
+  overflow: hidden;
+  /* 修改：从auto改为hidden，防止右下方区域出现滚动条 */
 }
 
 /* 新增按钮容器样式 */
@@ -588,5 +665,111 @@ const submitPrompt = async () => {
 
 .table-container {
   overflow-y: scroll;
-} 
+}
+
+.demo-progress .el-progress--line {
+  width: 350px;
+  margin-top: 15px;
+}
+
+.demo-progress {
+  padding: 10px;
+  background-color: #f5f7fa;
+  border-radius: 4px;
+}
+
+.el-collapse-item {
+  margin-bottom: 10px;
+}
+
+.el-collapse {
+  border: none;
+}
+
+/* 修改折叠面板头部边框样式 */
+:deep(.el-collapse-item__header) {
+  border-bottom: none;
+}
+
+/* 如果上面的方式不起作用，可以尝试使用更高的优先级 */
+:deep(.el-collapse-item) .el-collapse-item__header {
+  border-bottom: none !important;
+}
+
+/* 同时确保内容区域的边框样式也被正确设置 */
+:deep(.el-collapse-item__wrap) {
+  border-bottom: none;
+}
+
+.pdf-container-wrapper {
+  position: relative;
+  width: 100%;
+  min-height: 200px;
+  /* 确保容器有足够的高度显示加载动画 */
+  background: #fff;
+}
+
+/* 添加PDF加载蒙版样式 */
+.pdf-loading-mask {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 1000;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background-color: rgba(255, 255, 255, 0.7);
+}
+
+/* 左侧容器隐藏时的样式 */
+.left-container-hidden {
+  margin-left: -440px; /* 宽度 + 边距 */
+  transition: margin-left 0.3s ease-in-out;
+}
+
+/* 左侧容器显示时的过渡效果 */
+.left-container, .left-container-drag {
+  position: relative;
+  transition: margin-left 0.3s ease-in-out;
+}
+
+/* 折叠按钮样式 */
+.collapse-button {
+  position: absolute;
+  top: 10px;
+  right: 2px;
+  width: 30px;
+  height: 30px;
+  background-color: #409EFF;
+  border-radius: 50%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  cursor: pointer;
+  z-index: 10000;
+  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
+}
+
+.collapse-button .el-icon {
+  color: white;
+  font-size: 16px;
+  transition: transform 0.3s;
+}
+
+.icon-rotate {
+  transform: rotate(180deg);
+}
+
+/* 右侧容器扩展时的样式 */
+.right-container-expanded {
+  margin-left: -20px; /* 补偿左侧容器的边距 */
+  transition: margin-left 0.3s ease-in-out;
+}
+
+/* 右侧容器的过渡效果 */
+.right-container {
+  transition: margin-left 0.3s ease-in-out;
+}
 </style>
