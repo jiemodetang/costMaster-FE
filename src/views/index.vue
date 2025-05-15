@@ -1,87 +1,113 @@
 <template>
   <div class="main-container-top">
-    <!-- 左边容器 -->
-    <!-- 左边容器 -->
-    <div :class="[state.pdfPages ? 'left-container' : 'left-container-drag', {'left-container-hidden': isLeftContainerHidden}]">
-      <!-- 添加折叠按钮 -->
-      <div class="collapse-button" @click="toggleLeftContainer">
-        <el-icon :class="{'icon-rotate': isLeftContainerHidden}">
-          <ArrowLeft />
-        </el-icon>
+    <!-- 顶部导航栏 -->
+    <div class="top-nav">
+      <div class="back-button">
+        项目评估：
       </div>
-      <!-- 原有的上传按钮和 PDF 容器 -->
-      <div v-if="!state.pdfPages">
-        <!-- 添加 el-upload 拖拽上传组件 -->
-        <el-upload class="upload-demo" action="#" :auto-upload="false" :on-change="handleFileChange" :limit="1"
-          :on-exceed="handleExceed" :on-remove="handleRemove" drag>
-          <i class="el-icon-upload"></i>
-          <div class="el-upload__text">将文件拖到此处，或<em>点击上传</em></div>
-        </el-upload>
+      <div class="project-info" v-if="state.pdfSrc">
+        <span class="file-name">名字：{{ state.pdfSrc }}</span>
+        <el-tag size="small" effect="plain" class="file-tag">PDF</el-tag>
+        <div class="divider"></div>
+
       </div>
-      <div v-else id="pdf-container" class="pdf-container-wrapper" v-loading="pdfRendering"
-        element-loading-text="PDF渲染中..." element-loading-spinner="el-icon-loading"
-        element-loading-background="rgba(255, 255, 255, 0.9)">
-        <div v-for="page in state.pdfPages" :key="page" class="pdf-page-container">
-          <canvas :id="`pdfCanvas${page}`" style="border-bottom:1px solid #d4d2d2" />
-          <div :id="`textLayer${page}`" class="text-layer"></div>
+
+      <div class="nav-tabs">
+        <div class="model-info">
+          <el-icon class="model-icon">
+            <Connection />
+          </el-icon>
+          <span>当前 AI 模型: </span>
+          <el-tag type="success" size="small" effect="dark" class="ai-model-tag">
+            <i class="ai-icon"></i>
+            {{ selectedModelName }}
+          </el-tag>
         </div>
       </div>
+
     </div>
-    <!-- 右边容器 -->
-    <div class="right-container" :class="{'right-container-expanded': isLeftContainerHidden}">
-      <!-- 右边上半部分 -->
-      <div class="right-top"
-        style="display: flex; align-items: center; justify-content: space-between; flex-direction: column;">
-        <!-- 新增显示上传文件名字和当前配置 AI 模型名字的元素 -->
-        <div class="info-container">
-          <span class="info-item" title="{{ state.pdfSrc }}">文件名字: {{ state.pdfSrc }}</span>
-          <span class="info-item" title="{{ selectedModel.value }}">当前配置 AI 模型: {{ selectedModel }}</span>
-        </div>
-        <!-- 使用 flex 布局让按钮自适应 -->
-        <div class="button-container">
-          <!-- 添加 Element Plus 上传按钮 -->
-          <el-upload action="#" :show-file-list="false" :auto-upload="false" :on-change="handleFileChange" :limit="1"
-            :on-exceed="handleExceed" :on-remove="handleRemove" type="success" class="custom-upload">
-            <el-button type="primary" class="custom-upload-button">
-              点击上传
-            </el-button>
+    <!-- 左边容器 -->
+    <div class="main-container" style="margin: 0;">
+      <div :class="['left-container', { 'left-container-hidden': isLeftContainerHidden }]">
+        <!-- 原有的上传按钮和 PDF 容器 -->
+        <div v-if="!state.pdfPages">
+          <!-- 添加 el-upload 拖拽上传组件 -->
+          <el-upload v-if="!isLeftContainerHidden" class="upload-demo" action="#" :auto-upload="false" :on-change="handleFileChange" :limit="1"
+            :on-exceed="handleExceed" :on-remove="handleRemove" drag>
+            <i class="el-icon-upload"></i>
+            <div class="el-upload__text">将文件拖到此处，或<em>点击上传</em></div>
           </el-upload>
-          <!-- 可以添加更多按钮 -->
-          <!-- 添加配置 AI 模型的按钮 -->
-          <el-button type="primary" @click="dialogVisible = true">配置 AI 模型</el-button>
-          <!-- 修改按钮，添加 :loading 属性 -->
-          <el-button type="primary" @click="submitPrompt" :loading="loading">开始生成</el-button>
-          <el-progress v-if="loading" :percentage="progress" style="width: 100%; margin-top: 10px;" />
+        </div>
+        <div v-else class="pdf-top">
+          <div id="pdf-container" class="pdf-container-wrapper" v-loading="pdfRendering"
+          element-loading-text="PDF渲染中..." element-loading-spinner="el-icon-loading"
+          element-loading-background="rgba(255, 255, 255, 0.9)">
+          <div v-for="page in state.pdfPages" :key="page" class="pdf-page-container">
+            <canvas :id="`pdfCanvas${page}`" style="border-bottom:1px solid #d4d2d2" />
+            <div :id="`textLayer${page}`" class="text-layer"></div>
+          </div>
+        </div>
+        </div>
+      
+        <div class="collapse-button" @click="toggleLeftContainer">
+          <el-icon>
+            <ArrowLeft v-if="!isLeftContainerHidden" />
+            <ArrowRight v-else />
+          </el-icon>
         </div>
       </div>
-      <!-- 右边下半部分 -->
-      <div class="right-bottom">
-        <!-- 这里可以添加右边下半部分的自定义内容 -->
-        <PdfEditTable ref="pdfEditTableRef" :pdfDealTableData="state.tableData" :submitLoading="loading"
-          :highlight-row-ids="selectedRowIds">
-        </PdfEditTable>
+   
+      <!-- 右边容器 -->
+      <div class="right-container" :class="{ 'right-container-expanded': isLeftContainerHidden }">
+        <!-- 右边上半部分 -->
+        <div class="right-top"
+          style="display: flex; justify-content: space-between; flex-direction: column;">
+          <!-- 使用 flex 布局让按钮自适应 -->
+          <div class="button-container">
+            <!-- 添加 Element Plus 上传按钮 -->
+            <el-upload action="#" :show-file-list="false" :auto-upload="false" :on-change="handleFileChange" :limit="1"
+              :on-exceed="handleExceed" :on-remove="handleRemove" type="success" class="custom-upload">
+              <el-button type="primary" class="custom-upload-button">
+                上传PDF
+              </el-button>
+            </el-upload>
+            <!-- 可以添加更多按钮 -->
+            <!-- 添加配置 AI 模型的按钮 -->
+            <el-button type="primary" @click="dialogVisible = true">配置 AI 模型</el-button>
+            <!-- 修改按钮，添加 :loading 属性 -->
+            <el-button type="primary" @click="submitPrompt" :loading="loading">开始生成</el-button>
+            <el-progress v-if="loading" :percentage="progress" style="width: 100%; margin-top: 10px;" />
+          </div>
+        </div>
+        <!-- 右边下半部分 -->
+        <div class="right-bottom">
+          <!-- 这里可以添加右边下半部分的自定义内容 -->
+          <PdfEditTable ref="pdfEditTableRef" :pdfDealTableData="state.tableData" :submitLoading="loading"
+            :highlight-row-ids="selectedRowIds">
+          </PdfEditTable>
+        </div>
       </div>
     </div>
     <!-- 添加对话框 -->
-    <el-dialog v-model="dialogVisible" title="配置 AI 模型">
+    <el-dialog v-model="dialogVisible" title="配置 AI 模型" width="1200">
       <el-form>
         <!-- 选择模型 -->
-        <el-form-item label="选择模型">
+        <el-form-item label="选择模型：">
           <el-select v-model="selectedModel" placeholder="请选择模型">
             <el-option v-for="(config, key) in apiConfigs" :key="config.key" :label="config.name"
               :value="config.value"></el-option>
           </el-select>
         </el-form-item>
         <!-- 二选一的单选框 -->
-        <el-form-item label="参数设置">
+        <el-form-item label="参数设置：">
           <el-radio-group v-model="paramType">
-            <el-radio value="default">AI 默认参数</el-radio>
-            <el-radio value="custom">自定义参数</el-radio>
+            <el-radio v-for="option in paramOptions" :key="option.value" :value="option.value">{{ option.label
+              }}</el-radio>
           </el-radio-group>
         </el-form-item>
         <!-- 自定义参数文本框 -->
         <el-form-item v-if="paramType === 'custom'" label="自定义参数">
-          <el-input type="textarea" v-model="customParams" placeholder="请输入自定义参数" :rows="30"></el-input>
+          <el-input type="textarea" v-model="customParams" placeholder="请输入自定义参数" :rows="20"></el-input>
           <!-- 新增恢复默认参数按钮 -->
           <div style="margin-top: 10px; text-align: right;">
             <el-button type="primary" @click="resetCustomParams">恢复默认参数</el-button>
@@ -91,7 +117,7 @@
         <el-form-item>
           <el-collapse>
             <el-collapse-item title="高级配置">
-              <el-form-item label="Token颗粒化">
+              <el-form-item label="Token切片">
                 <div class="demo-progress">
                   <el-progress :percentage="tokenPercentage" :color="tokenColors" :format="format" />
                   <div style="margin-top: 10px;">
@@ -121,22 +147,15 @@
 <script setup>
 import { onMounted, reactive, nextTick, ref } from "vue";
 import * as PDF from "pdfjs-dist/legacy/build/pdf.mjs";
-import aiAxios, { apiConfigs, ifpugFunctionPointEvaluationPrompt,customizeEvaluationPrompt } from './pdfEditTable/config';
+import aiAxios, { apiConfigs, ifpugFunctionPointEvaluationPrompt, customizeEvaluationPrompt, ifpugOtherEvaluationPrompt,commonJsonOutputFormat } from './pdfEditTable/config';
 import PdfEditTable from './pdfEditTable/index.vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { data2, data3 } from './pdfEditTable/mock';
 // import { TextLayerBuilder } from 'pdfjs-dist/legacy/web/pdf_viewer.mjs';
 import { debounce } from 'lodash';
-import { Plus, Minus, ArrowLeft } from '@element-plus/icons-vue'
+import { Plus, Minus, ArrowLeft,ArrowRight } from '@element-plus/icons-vue'
 const pdfEditTableRef = ref(null);
 
-// 添加左侧容器折叠状态
-const isLeftContainerHidden = ref(false);
-
-// 切换左侧容器显示/隐藏状态
-const toggleLeftContainer = () => {
-  isLeftContainerHidden.value = !isLeftContainerHidden.value;
-};
 
 PDF.GlobalWorkerOptions.workerSrc = 'node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs';
 
@@ -173,7 +192,13 @@ const progress = ref(0); // 新增进度条变量
 let pdfDoc = null;
 const redCharPositions = ref([]);
 const selectedRowIds = ref([]);
+// 控制左侧面板折叠状态
+const isLeftContainerHidden = ref(false);
 
+// 切换左侧面板折叠状态
+const toggleLeftContainer = () => {
+  isLeftContainerHidden.value = !isLeftContainerHidden.value;
+};
 // 增加token配置
 const increaseToken = () => {
   if (currentTokenIndex < tokenOptions.length - 1) {
@@ -467,11 +492,24 @@ async function renderPage(num) {
 // 新增对话框相关响应式数据和方法
 const dialogVisible = ref(false);
 const selectedModel = ref('doubao-1-5-pro-32k-250115');
-const paramType = ref('default');
+const selectedModelName = ref(apiConfigs['doubao-1-5-pro-32k-250115'].name);
+
+const paramType = ref('default1');
+const paramOptions = ref([
+  { label: '估算功能点方法', value: 'default1' },
+  { label: '预估功能点方法', value: 'default2' },
+  // { label: '配置三(待训练)', value: 'default3' },
+  { label: '自定义参数', value: 'custom' }
+]);
 const customParams = ref('');
+
 customParams.value = localStorage.getItem('aiCustomParams') || customizeEvaluationPrompt;
 
 const saveConfig = () => {
+  // 根据选择的模型值反推模型名称
+  const selectedModelConfig = Object.values(apiConfigs).find(config => config.value === selectedModel.value);
+  const modelName = selectedModelConfig ? selectedModelConfig.name : '未知模型';
+  selectedModelName.value = modelName;
   console.log('保存配置:', {
     selectedModel: selectedModel.value,
     paramType: paramType.value,
@@ -484,6 +522,7 @@ const saveConfig = () => {
 // 新增恢复默认参数方法
 const resetCustomParams = () => {
   customParams.value = customizeEvaluationPrompt;
+  localStorage.setItem('aiCustomParams', customParams.value);
   ElMessage.success('已恢复默认参数');
 };
 
@@ -500,15 +539,26 @@ const submitPrompt = async () => {
   try {
     // 模拟进度条递增（如有后端进度接口可替换为轮询）
     const timer = setInterval(() => {
-      if (progress.value < 99) progress.value += Math.floor(Math.random() * 8) + 1;
+      if (progress.value < 95) {
+        progress.value += Math.floor(Math.random() * 5) + 1;
+      } else if (progress.value < 99) {
+        // 当进度接近99时，增长更缓慢
+        progress.value += Math.random() < 0.3 ? 1 : 0;
+      }
+      // 确保进度值不超过99
+      if (progress.value > 99) {
+        progress.value = 99;
+      }
     }, 20000);
-
-    if (paramType.value == 'default') {
-      console.log(state.pdfAllText);
+    console.log(state.pdfAllText);
+    if (paramType.value == 'default1') {
       const text = await aiAxios(selectedModel.value, state.pdfAllText + ',' + ifpugFunctionPointEvaluationPrompt, t);
       state.tableData = text;
-    } else {
-      const text = await aiAxios(selectedModel.value, state.pdfAllText + '，' + customParams.value);
+    }else if (paramType.value == 'default2') {
+      const text = await aiAxios(selectedModel.value, state.pdfAllText + ',' + ifpugOtherEvaluationPrompt, t);
+      state.tableData = text;
+    }else {
+      const text = await aiAxios(selectedModel.value, state.pdfAllText + '，' + customParams.value + commonJsonOutputFormat);
       state.tableData = text;
     }
 
@@ -533,29 +583,61 @@ const submitPrompt = async () => {
 <style scoped>
 .main-container-top {
   display: flex;
-  height: 100vh;
-  background: #fff;
+  flex-direction: column;
+  height: 100%;
+  background-color: #f5f7fa;
+  padding: 20px
+}
+
+
+/* 顶部导航栏样式 */
+.top-nav {
+  display: flex;
+  align-items: center;
+  padding: 10px 20px;
+  background-color: #fff;
+  border-bottom: 1px solid #e4e7ed;
+}
+
+.back-button {
+  display: flex;
+  align-items: center;
+  margin-right: 20px;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.project-info {
+  display: flex;
+  align-items: center;
+  font-size: 14px;
+  color: #606266;
+}
+
+.tab-item.active {
+  color: #409eff;
+  font-weight: bold;
+}
+
+
+.main-container {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
 }
 
 .left-container {
-  height: 100vh;
-  overflow-y: auto;
-  padding: 10px;
+  height: 100%;
+  background-color: #fff;
+  border-right: 1px solid #e4e7ed;
   width: 500px;
-  margin: 20px;
   background: #eaeaea;
   flex-shrink: 0;
-  /* 确保 left-container 不会被压缩 */
-}
-
-.left-container-drag {
-  height: 100vh;
-  overflow-y: auto;
-  padding: 10px;
-  width: 500px;
-  margin: 20px;
-  flex-shrink: 0;
-  /* 确保 left-container-drag 不会被压缩 */
+  background-color: #fff;
+  position: relative;
+  /* 确保这个属性存在 */
+  will-change: width;
+  transition: width 0.3s ease;
 }
 
 .right-container {
@@ -563,25 +645,22 @@ const submitPrompt = async () => {
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  /* 修改：从overflow-x: auto改为hidden，防止右侧容器出现滚动条 */
-  min-width: 0;
-  /* 确保内容溢出时可以滚动 */
+
 }
 
 .right-top {
-  height: 120px;
   padding: 10px;
   flex-shrink: 0;
   display: flex;
-  align-items: center;
+  align-items: baseline;
   justify-content: space-between;
+  background-color: #fff;
 }
 
 .right-bottom {
   flex: 1;
-  border: 1px solid #ccc;
-  padding: 10px;
   overflow: hidden;
+  height: 100%;
   /* 修改：从auto改为hidden，防止右下方区域出现滚动条 */
 }
 
@@ -596,11 +675,7 @@ const submitPrompt = async () => {
   /* 垂直居中对齐 */
 }
 
-.right-bottom {
-  flex: 1;
-  border: 1px solid #ccc;
-  padding: 10px;
-}
+
 
 
 #pdf-container {
@@ -615,9 +690,6 @@ const submitPrompt = async () => {
   flex-direction: column;
   justify-content: center;
   align-items: center;
-  border: 1px dashed #d9d9d9;
-  border-radius: 4px;
-  margin-top: 10px;
 }
 
 .upload-demo .el-upload-dragger {
@@ -723,53 +795,135 @@ const submitPrompt = async () => {
   background-color: rgba(255, 255, 255, 0.7);
 }
 
-/* 左侧容器隐藏时的样式 */
-.left-container-hidden {
-  margin-left: -440px; /* 宽度 + 边距 */
-  transition: margin-left 0.3s ease-in-out;
+/* 添加分界线样式 */
+.divider {
+  height: 24px;
+  width: 1px;
+  background-color: #dcdfe6;
+  margin: 0 15px;
 }
 
-/* 左侧容器显示时的过渡效果 */
-.left-container, .left-container-drag {
+/* AI模型标签样式 */
+.ai-model-tag {
+  background: linear-gradient(90deg, #13c2c2 0%, #1890ff 100%);
+  border: none;
+  padding: 4px 8px;
+  border-radius: 12px;
+  box-shadow: 0 2px 6px rgba(24, 144, 255, 0.3);
+  display: inline-flex;
+  align-items: center;
   position: relative;
-  transition: margin-left 0.3s ease-in-out;
+  overflow: hidden;
+}
+
+.ai-model-tag::before {
+  content: "";
+  position: absolute;
+  top: -10px;
+  left: -10px;
+  right: -10px;
+  bottom: -10px;
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.3));
+  transform: rotate(45deg);
+  animation: shine 3s infinite;
+}
+
+.ai-icon {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  margin-right: 4px;
+  background: rgba(255, 255, 255, 0.8);
+  border-radius: 50%;
+  position: relative;
+}
+
+.ai-icon::before,
+.ai-icon::after {
+  content: "";
+  position: absolute;
+  background: rgba(255, 255, 255, 0.8);
+  border-radius: 50%;
+}
+
+.ai-icon::before {
+  width: 6px;
+  height: 6px;
+  top: -3px;
+  left: 3px;
+}
+
+.ai-icon::after {
+  width: 4px;
+  height: 4px;
+  bottom: -2px;
+  right: 0;
+}
+
+@keyframes shine {
+  0% {
+    transform: translateX(-100%) rotate(45deg);
+  }
+
+  100% {
+    transform: translateX(100%) rotate(45deg);
+  }
 }
 
 /* 折叠按钮样式 */
 .collapse-button {
   position: absolute;
-  top: 10px;
-  right: 2px;
+  right: -15px;
+  top: 50%;
+  transform: translateY(-50%);
   width: 30px;
   height: 30px;
-  background-color: #409EFF;
+  background-color: #fff;
+  border: 1px solid #e4e7ed;
   border-radius: 50%;
   display: flex;
-  justify-content: center;
   align-items: center;
+  justify-content: center;
   cursor: pointer;
-  z-index: 10000;
+  z-index: 9; /* 确保按钮在最上层 */
   box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
+  transition: all 0.3s;
 }
 
-.collapse-button .el-icon {
+
+/* 确保按钮在折叠状态下仍然可见 */
+.left-container-hidden .collapse-button {
+  right: -30px;
+  /* 当左侧面板折叠时，将按钮移到更右侧 */
+}
+
+/* 添加悬停效果增强可见性 */
+.collapse-button:hover {
+  background-color: #409EFF;
   color: white;
-  font-size: 16px;
-  transition: transform 0.3s;
+  box-shadow: 0 2px 12px 0 rgba(64, 158, 255, 0.5);
 }
 
-.icon-rotate {
-  transform: rotate(180deg);
+.left-container-hidden {
+  width: 0;
+  padding: 0;
+  margin: 0;
+  border: none;
 }
 
-/* 右侧容器扩展时的样式 */
-.right-container-expanded {
-  margin-left: -20px; /* 补偿左侧容器的边距 */
-  transition: margin-left 0.3s ease-in-out;
-}
-
-/* 右侧容器的过渡效果 */
+/* 修改右侧容器样式，添加过渡效果 */
 .right-container {
-  transition: margin-left 0.3s ease-in-out;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  /* transition: margin-left 0.3s ease; */
+}
+
+.right-container-expanded {
+  margin-left: 0;
+}
+.pdf-top {
+  overflow-y: scroll;
+  height: 100%;
 }
 </style>

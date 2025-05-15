@@ -38,7 +38,8 @@
           </div>
         </div>
       </template>
-      <el-table ref="tableRef" :data="tableData" border style="width: 100%;" height="100%" row-key="id"
+      <div style="height: 90%;width: 100%;">
+        <el-table ref="tableRef" :data="tableData" border style="width: 100%;"  height="100%" class="table-wrapper" row-key="id"
         :row-class-name="handleHighlightRow" :span-method="mergeCells" :loading="false">
         <el-table-column prop="id" label="编号" width="80" align="center" />
 
@@ -169,6 +170,7 @@
           </template>
         </el-table-column>
       </el-table>
+      </div>
     </el-skeleton>
   </div>
 </template>
@@ -547,14 +549,17 @@ const insertRow = (index) => {
 <style scoped>
 .table-container {
   padding: 20px;
-  height: 100%;
-  /* 修改：从100vh改为100%，使表格容器高度适应父容器 */
   box-sizing: border-box;
   position: relative;
   overflow: auto;
-  /* 添加：使表格容器可以滚动 */
+  height: 100%;
 }
-
+.table-wrapper{
+  background-color: #fff;
+  border-radius: 4px;
+  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
+  margin-top:80px
+}
 /* 导出按钮样式 */
 .export-btn {
   position: absolute;
@@ -563,6 +568,8 @@ const insertRow = (index) => {
 }
 
 .search-box {
+  position: absolute;
+  top: 20px;
   margin-bottom: 20px;
   display: flex;
   flex-direction: column;
@@ -621,6 +628,8 @@ const insertRow = (index) => {
   border: 1px solid #dcdfe6;
   border-radius: 4px;
   overflow: hidden;
+  background: #fff;
+  margin-top: 80px;
 }
 
 .skeleton-table-header {

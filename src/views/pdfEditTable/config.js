@@ -24,22 +24,19 @@ const ifpugFunctionPointEvaluationPrompt = `您现在是一名资深软件造价
     countItem:'',//功能点计数项名称
     category:'' //识别功能描述文本中的功能类型
 
-}]。请注意,description必须是对应原文本的内容,包括原标点符号。
+}]。请注意,description必须是对应原文本的内容,包括原标点符号,不要增加标点符号。
 6.功能点计数项名称当有EI或者EO时,一定增加一条对应的ILF,且这一条在最前面。
 7.当二级模块名称带有管理,信息的含义时,功能点计数项对应的ILF后增加三条对应的信息的创建、删除、修改。
 8.请只输出完整的JSON,不输出其他附加内容,且格式的key必须如上所述，绝对要完整`
-const customizeEvaluationPrompt = `您现在是一名资深软件造价师,您将获得由上边pdf软件系统的功能描述文本。
-请按照以下步骤进行评估:
-1.
-2.
-3.
-4.识别功能描述文本中的功能类型,功能类型有如下5种: 
-  1）EI:用户向系统输入数据,该数据会被系统进行处理。EI通常为在系统中创建、修改、或删除的数据。
-  2）EO:系统对数据进行计算后向用户展示计算结果的数据,EO通常为分析功能、计算功能、统计功能、个性化信息展示、自动生成等功能。
-  3）EQ:查询展示功能,系统根据查询条件或者默认查询条件直接将内部数据展示给用户,不会进行任何数据计算修改等操作。EQ通常包括查询、下载、打印等功能。
-  4）ILF:表示在系统内部维护的数据集合,这些数据集合由系统进行维护和管理。
-  5）EIF:由系统外部维护,但被本系统访问的数据组。通常功能描述中包含有外部数据,对接,引入、接口、第三方等,表示有EIF 。
-5.将最后的结果整理成JSON格式输出,JSON格式如下，key必须如下描述: [{
+const ifpugOtherEvaluationPrompt = `您现在是一名资深软件造价师,您将获得由上边pdf软件系统的功能描述文本。
+ 您的任务是,使用IFPUG方法评估功能描述文本内的功能点。 请按照以下步骤进行评估: 
+ 1、逐字阅读功能描述文本。
+ 2、识别功能描述文本中的功能类型,功能类型有如下2种: 
+  1）ILF:表示在系统内部维护的数据集合,这些数据集合由系统进行维护和管理。
+  2）EIF:由系统外部维护,但被本系统访问的数据组。通常功能描述中包含有外部数据,对接,引入、接口、第三方等,表示有EIF 。
+3、归纳出每个功能点名称,功能分类为子系统,一级模块,二级模块,原文本内容,功能点计数项名称,功能类型。
+4、功能点名称和功能描述中不要出现ILF、EIF。通常ILF或者EIF的功能点名称都是以信息结尾的,如用户信息,报表信息等 。
+5、将最后的结果整理成JSON格式输出,JSON格式如下,key必须如下描述: [{
     id: '',//id
     subsystem: "",//子系统
     level1: "",//一级模块
@@ -48,19 +45,30 @@ const customizeEvaluationPrompt = `您现在是一名资深软件造价师,您�
     countItem:'',//功能点计数项名称
     category:'' //识别功能描述文本中的功能类型
 
-}]。请注意,description必须是对应原文本的内容,包括原标点符号。
-6.请只输出完整的JSON,不输出其他附加内容,且格式的key必须如上所述，绝对要完整
-`
+}]。请注意,description必须是对应原文本的内容,包括原标点符号,不要增加标点符号。
+6.请只输出完整的JSON,不输出其他附加内容,且格式的key必须如上所述,绝对要完整`
 
+
+const customizeEvaluationPrompt = `您现在是一名资深软件造价师,您将获得由上边pdf软件系统的功能描述文本。
+请按照以下步骤进行评估:
+1.
+2.
+3.
+4.
+5.
+`
+const commonJsonOutputFormat = `
+最后请注意将最后的结果整理成JSON格式输出,JSON格式如下,key必须如下描述: [{
+    id: '',//id
+    subsystem: "",//子系统
+    level1: "",//一级模块
+    level2: "",//二级模块
+    description:'',//必须是对应原文本的内容
+    countItem:'',//功能点计数项名称
+    category:'' //识别功能描述文本中的功能类型
+
+}]。请注意,description必须是对应原文本的内容,包括原标点符号。请只输出完整的JSON,不输出其他附加内容,且格式的key必须如上所述，绝对要完整`
 const apiConfigs = {
-  // 'qwen-turbo-latest': {
-  //   url: 'https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions',
-  //   model: "qwen-turbo-latest",
-  //   name: 'doubao',
-  //   value: 'qwen-turbo-latest',
-  //   maxTokens:8192, //12288
-  //   authorization: 'sk-1abce39699b4447f96bd1a39913f51b1'
-  // }, 
   'doubao-1-5-pro-32k-250115': {
     url: 'https://ark.cn-beijing.volces.com/api/v3/chat/completions',
     model: "doubao-1-5-pro-32k-250115",
@@ -225,7 +233,9 @@ async function aiAxios(configName, initialContent,token) {
 export {
   apiConfigs,
   ifpugFunctionPointEvaluationPrompt,
-  customizeEvaluationPrompt
+  customizeEvaluationPrompt,
+  commonJsonOutputFormat,
+  ifpugOtherEvaluationPrompt
 }
 export default aiAxios; // 导出修改后的函数
 
