@@ -83,7 +83,7 @@
         <div class="right-bottom">
           <!-- 这里可以添加右边下半部分的自定义内容 -->
           <PdfEditTable ref="pdfEditTableRef" :pdfDealTableData="state.tableData" :submitLoading="loading"
-            :highlight-row-ids="selectedRowIds">
+            :highlight-row-ids="selectedRowIds" :paramType="paramType">
           </PdfEditTable>
         </div>
       </div>
@@ -147,17 +147,21 @@
 <script setup>
 import { onMounted, reactive, nextTick, ref } from "vue";
 import * as PDF from "pdfjs-dist/legacy/build/pdf.mjs";
-import aiAxios, { apiConfigs, ifpugFunctionPointEvaluationPrompt, customizeEvaluationPrompt, ifpugOtherEvaluationPrompt,commonJsonOutputFormat } from './pdfEditTable/config';
+import aiAxios, { apiConfigs, ifpugFunctionPointEvaluationPrompt, customizeEvaluationPrompt, ifpugOtherEvaluationPrompt,commonJsonOutputFormat ,paramOptionsConfig} from './pdfEditTable/config';
 import PdfEditTable from './pdfEditTable/index.vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { data2, data3 } from './pdfEditTable/mock';
 // import { TextLayerBuilder } from 'pdfjs-dist/legacy/web/pdf_viewer.mjs';
 import { debounce } from 'lodash';
 import { Plus, Minus, ArrowLeft,ArrowRight } from '@element-plus/icons-vue'
+import workerUrl from 'pdfjs-dist/legacy/build/pdf.worker?url';
+
+
+
 const pdfEditTableRef = ref(null);
 
 
-PDF.GlobalWorkerOptions.workerSrc = 'node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs';
+PDF.GlobalWorkerOptions.workerSrc = workerUrl
 
 const state = reactive({
   pdfPath: '',
@@ -275,8 +279,8 @@ onMounted(() => {
 function loadFile(url) {
   PDF.getDocument({
     url,
-    cMapUrl: 'node_modules/pdfjs-dist/cmaps/',
-    cMapPacked: true
+    // cMapUrl: new URL('pdfjs-dist/cmaps/', import.meta.url).href,
+    // cMapPacked: true
   }).promise.then((p) => {
     pdfDoc = p;
     const { numPages } = p;
@@ -495,12 +499,7 @@ const selectedModel = ref('doubao-1-5-pro-32k-250115');
 const selectedModelName = ref(apiConfigs['doubao-1-5-pro-32k-250115'].name);
 
 const paramType = ref('default1');
-const paramOptions = ref([
-  { label: '估算功能点方法', value: 'default1' },
-  { label: '预估功能点方法', value: 'default2' },
-  // { label: '配置三(待训练)', value: 'default3' },
-  { label: '自定义参数', value: 'custom' }
-]);
+const paramOptions = ref(paramOptionsConfig);
 const customParams = ref('');
 
 customParams.value = localStorage.getItem('aiCustomParams') || customizeEvaluationPrompt;
@@ -584,9 +583,10 @@ const submitPrompt = async () => {
 .main-container-top {
   display: flex;
   flex-direction: column;
-  height: 100%;
+  height: calc(100vh - 84px);
   background-color: #f5f7fa;
-  padding: 20px
+  padding: 20px;
+  
 }
 
 

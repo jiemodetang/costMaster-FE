@@ -26,8 +26,10 @@ const ifpugFunctionPointEvaluationPrompt = `您现在是一名资深软件造价
 
 }]。请注意,description必须是对应原文本的内容,包括原标点符号,不要增加标点符号。
 6.功能点计数项名称当有EI或者EO时,一定增加一条对应的ILF,且这一条在最前面。
-7.当二级模块名称带有管理,信息的含义时,功能点计数项对应的ILF后增加三条对应的信息的创建、删除、修改。
+7.功能点计数项要识别到的内容更加丰富，例如养殖场信息、供应商信息、员工信息、鸡舍信息这类型描述功能点计数项要全部识别。
+  当二级模块名称带有管理,信息的含义时,如果原文带有创建、删除、修改、上传、查询信息含义，功能点计数项对应的ILF后增加创建或删除或修改或上传或查询项。
 8.请只输出完整的JSON,不输出其他附加内容,且格式的key必须如上所述，绝对要完整`
+
 const ifpugOtherEvaluationPrompt = `您现在是一名资深软件造价师,您将获得由上边pdf软件系统的功能描述文本。
  您的任务是,使用IFPUG方法评估功能描述文本内的功能点。 请按照以下步骤进行评估: 
  1、逐字阅读功能描述文本。
@@ -46,7 +48,8 @@ const ifpugOtherEvaluationPrompt = `您现在是一名资深软件造价师,您�
     category:'' //识别功能描述文本中的功能类型
 
 }]。请注意,description必须是对应原文本的内容,包括原标点符号,不要增加标点符号。
-6.请只输出完整的JSON,不输出其他附加内容,且格式的key必须如上所述,绝对要完整`
+6.功能点计数项要识别到的内容更加丰富,更加细化，例如农产品产地环境、农业投入品、农事生产过程这类型要分析出多条功能点，分别返回多条功能点计数项数据。同时对ILF的信息识别更加细致，分多条返回。
+7.请只输出完整的JSON,不输出其他附加内容,且格式的key必须如上所述,绝对要完整`
 
 
 const customizeEvaluationPrompt = `您现在是一名资深软件造价师,您将获得由上边pdf软件系统的功能描述文本。
@@ -72,7 +75,7 @@ const apiConfigs = {
   'doubao-1-5-pro-32k-250115': {
     url: 'https://ark.cn-beijing.volces.com/api/v3/chat/completions',
     model: "doubao-1-5-pro-32k-250115",
-    name: '豆包-1-5-pro-32k-250115',
+    name: '线路1【1-5-pro-32k-250115】',
     value: 'doubao-1-5-pro-32k-250115',
     maxTokens:12288, //12288
     authorization: 'a5634a1c-cbd6-4508-8566-00102c88f6ff'
@@ -81,7 +84,7 @@ const apiConfigs = {
   'deepseek-v3-250324': {
     url: 'https://ark.cn-beijing.volces.com/api/v3/chat/completions',
     model: "deepseek-v3-250324",
-    name: 'Deepseek-v3-250324 【推理能力显著提升】',
+    name: '线路2【v3-250324】【推理能力显著提升】',
     value: 'deepseek-v3-250324',
     maxTokens: 16384,
     authorization: 'a5634a1c-cbd6-4508-8566-00102c88f6ff'
@@ -89,7 +92,7 @@ const apiConfigs = {
   "GLM-4-plus": {
     url: 'https://open.bigmodel.cn/api/paas/v4/chat/completions',
     model: "GLM-4-plus",
-    name: '智谱清言-4-flash【高智能旗舰】',
+    name: '线路3【4-flash】【高智能旗舰】',
     value: 'GLM-4-plus',
     maxTokens: 128000, //128000
     authorization: 'da75a43d60a94c7eab5c5d652c0dcf1a.ZVMoJWynUyAD9cC8'
@@ -98,7 +101,7 @@ const apiConfigs = {
     "GLM-4-flash": {
       url: 'https://open.bigmodel.cn/api/paas/v4/chat/completions',
       model: "GLM-4-flash",
-      name: '智谱清言-4-flash 【速度更快】-免费',
+      name: '线路4【4-flash】【速度更快】-免费',
       value: 'GLM-4-flash',
       maxTokens: 128000,
       authorization: 'da75a43d60a94c7eab5c5d652c0dcf1a.ZVMoJWynUyAD9cC8'
@@ -229,13 +232,19 @@ async function aiAxios(configName, initialContent,token) {
   }
 }
 
-
+const  paramOptionsConfig= [
+  { label: '估算功能点方法', value: 'default1' },
+  { label: '预估功能点方法', value: 'default2' },
+  // { label: '配置三(待训练)', value: 'default3' },
+  { label: '自定义参数', value: 'custom' }
+]
 export {
   apiConfigs,
   ifpugFunctionPointEvaluationPrompt,
   customizeEvaluationPrompt,
   commonJsonOutputFormat,
-  ifpugOtherEvaluationPrompt
+  ifpugOtherEvaluationPrompt,
+  paramOptionsConfig
 }
 export default aiAxios; // 导出修改后的函数
 

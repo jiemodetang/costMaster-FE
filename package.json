@@ -32,8 +32,6 @@
     "jsencrypt": "3.3.2",
     "lodash": "^4.17.21",
     "nprogress": "0.2.0",
-    "pdf-lib": "^1.17.1",
-    "pdf-masterv": "^0.1.2",
     "pdfjs-dist": "^5.1.91",
     "pinia": "2.1.7",
     "sortablejs": "^1.15.6",
